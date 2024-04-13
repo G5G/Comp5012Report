@@ -42,19 +42,7 @@ def construct_covariance_matrix(num_assets, std_devs, correlations):
                 cov_matrix[i-1][j-1] = correlations[i][j] * std_devs[i-1] * std_devs[j-1]
     return cov_matrix
 
-files = ["port1.txt", "port2.txt", "port3.txt", "port4.txt", "port5.txt"]
-all_data = {}
 
-for file_name in files:
-    path = f"data/{file_name}"
-    num_assets, returns, std_devs, correlations = parse_portfolio_data(path)
-    cov_matrix = construct_covariance_matrix(num_assets, std_devs, correlations)
-    all_data[file_name] = {
-        "num_assets": num_assets,
-        "returns": returns,
-        "std_devs": std_devs,
-        "cov_matrix": cov_matrix
-    }
 
 #print(all_data)
 #print("_____")

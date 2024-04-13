@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def uniform_crossover(parent1, parent2):
     """
     Perform uniform crossover between two parents.
