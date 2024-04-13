@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 def parse_portfolio_data(file_path):
     with open(file_path, 'r') as file:
@@ -42,7 +44,25 @@ def construct_covariance_matrix(num_assets, std_devs, correlations):
                 cov_matrix[i-1][j-1] = correlations[i][j] * std_devs[i-1] * std_devs[j-1]
     return cov_matrix
 
+#todo: not sure where the frontier to use
+def read_frontier(directory_path, prefix):
+    frontier_points_list = []
 
+    for filename in os.listdir(directory_path):
+        if filename.startswith(prefix):
+            file_path = os.path.join(directory_path, filename)
+            with open(file_path, 'r') as file:
+                lines = file.readlines()
+
+            frontier_points = []
+            for line in lines:
+                mean_return, variance = map(float, line.split())
+                frontier_points.append((mean_return, variance))
+
+            frontier_points_list.append(frontier_points)
+
+    return frontier_points_list
+# frontier_points_list = read_frontier(DATA_FILES_PATH, FRONTIER_PREFIX)
 
 #print(all_data)
 #print("_____")

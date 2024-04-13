@@ -1,9 +1,11 @@
+import os
 import random
 
 import numpy as np
 from matplotlib import pyplot as plt
 
 from advanced_genetic_operations import sbx_crossover, polynomial_mutation
+from config import DATA_FILES_PATH, PORTFOLIO_PREFIX, ALGORITHM_PARAMS
 from data_parser import parse_portfolio_data, construct_covariance_matrix
 
 
@@ -17,10 +19,6 @@ def initialize_population(pop_size, num_assets):
     population = np.random.rand(pop_size, num_assets)
     population /= population.sum(axis=1)[:, np.newaxis]  # Normalize to sum to 1
     return population
-
-pop_size = 100
-num_assets = 10
-initial_population = initialize_population(pop_size, num_assets)
 
 
 # Function to evaluate the fitness of each portfolio
@@ -46,34 +44,30 @@ def pareto_selection(population, fitness):
             pareto_front.append(population[i])
     return pareto_front
 
-
-
-def mutate(individual):
-    index = random.randint(0, len(individual) - 1)
-    individual[index] = random.uniform(0, 1.0)
-    individual /= individual.sum()  # Normalize to ensure sum equals 1.0
-    return individual
-
-
-# Load portfolio data
-files = ["port1.txt", "port2.txt", "port3.txt", "port4.txt", "port5.txt"]
 all_data = {}
-for file_name in files:
-    path = f"data/{file_name}"
-    num_assets, returns, std_devs, correlations = parse_portfolio_data(path)
-    cov_matrix = construct_covariance_matrix(num_assets, std_devs, correlations)
-    all_data[file_name] = {"returns": returns, "cov_matrix": cov_matrix}
+num_assets = 0
 
-# Define algorithm parameters
-pop_size = 100
+#track all the files name
+files = []
+
+for file_name in os.listdir(DATA_FILES_PATH):
+    if file_name.startswith(PORTFOLIO_PREFIX) and file_name[len(PORTFOLIO_PREFIX)].isdigit():
+        path = f"{DATA_FILES_PATH}/{file_name}"
+        files.append(file_name)
+        num_assets, returns, std_devs, correlations = parse_portfolio_data(path)
+        cov_matrix = construct_covariance_matrix(num_assets, std_devs, correlations)
+        all_data[file_name] = {"returns": returns, "cov_matrix": cov_matrix}
+
+pop_size = ALGORITHM_PARAMS['POP_SIZE']
 num_assets = len(all_data[files[0]]['returns'])
-num_generations = 50
+num_generations = ALGORITHM_PARAMS['NUM_GENERATIONS']
 
 # Initialize population
 population = initialize_population(pop_size, num_assets)
 
 # Evolutionary algorithm loop
-for _ in range(num_generations):
+for i in range(num_generations):
+    print(f"Generation {i}")
     # Evaluate population
     fitness = evaluate_population(population, all_data[files[0]]['returns'], all_data[files[0]]['cov_matrix'])
 
