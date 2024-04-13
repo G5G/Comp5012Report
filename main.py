@@ -22,13 +22,25 @@ def initialize_population(pop_size, num_assets):
 
 
 # Function to evaluate the fitness of each portfolio
-def evaluate_population(population, returns, cov_matrix):
+def evaluate_population(population, all_data):
     fitness = []
     for weights in population:
-        portfolio_return = np.dot(weights, returns)
-        portfolio_variance = np.dot(np.dot(weights, cov_matrix), weights)
-        fitness.append((portfolio_return, portfolio_variance))
+        portfolio_returns = []
+        portfolio_variances = []
+        for file_name, data in all_data.items():
+            returns = data['returns']
+            cov_matrix = data['cov_matrix']
+            if len(weights) != len(returns):
+                continue  # Skip if dimensions don't match
+            portfolio_return = np.dot(weights, returns)
+            portfolio_variance = np.dot(np.dot(weights, cov_matrix), weights)
+            portfolio_returns.append(portfolio_return)
+            portfolio_variances.append(portfolio_variance)
+        if portfolio_returns and portfolio_variances:  # Check if both returns and variances are calculated
+            fitness.append((portfolio_returns, portfolio_variances))
     return fitness
+
+
 
 
 # Function to perform selection based on Pareto dominance
@@ -75,12 +87,13 @@ population = initialize_population(pop_size, num_assets)
 # Evolutionary algorithm loop
 for i in range(num_generations):
     print(f"Generation {i}")
+
     # Evaluate population
-    fitness = evaluate_population(population, all_data[files[0]]['returns'], all_data[files[0]]['cov_matrix'])
-    
+    fitness = evaluate_population(population, all_data)
+
     # Integrate elitism: Extract elite individuals
     elite_individuals = integrate_elitism(population, fitness, elite_size=int(0.1 * len(population)))
-    
+
     # Select parents based on Pareto dominance
     pareto_front = pareto_selection(population, fitness)
 
@@ -101,7 +114,7 @@ for i in range(num_generations):
     population = elite_individuals + mutated_offspring
 
 # Extract Pareto front from the final population
-pareto_front_fitness = evaluate_population(population, all_data[files[0]]['returns'], all_data[files[0]]['cov_matrix'])
+pareto_front_fitness = evaluate_population(population, all_data)
 pareto_front = pareto_selection(population, pareto_front_fitness)
 
 # Plot Pareto front
