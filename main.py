@@ -44,6 +44,13 @@ def pareto_selection(population, fitness):
             pareto_front.append(population[i])
     return pareto_front
 
+def integrate_elitism(population, fitness, elite_size=10):
+    # Sort the population based on fitness; assuming smaller fitness values are better
+    sorted_population = sorted(zip(population, fitness), key=lambda x: x[1])
+    elite_individuals = [ind for ind, fit in sorted_population[:elite_size]]
+    return elite_individuals
+
+
 all_data = {}
 num_assets = 0
 
@@ -70,7 +77,10 @@ for i in range(num_generations):
     print(f"Generation {i}")
     # Evaluate population
     fitness = evaluate_population(population, all_data[files[0]]['returns'], all_data[files[0]]['cov_matrix'])
-
+    
+    # Integrate elitism: Extract elite individuals
+    elite_individuals = integrate_elitism(population, fitness, elite_size=int(0.1 * len(population)))
+    
     # Select parents based on Pareto dominance
     pareto_front = pareto_selection(population, fitness)
 
@@ -81,8 +91,14 @@ for i in range(num_generations):
         child1, child2 = sbx_crossover(parent1, parent2)
         offspring.extend([child1, child2])
 
-    # Perform mutation
-    population = [polynomial_mutation(individual, 0.1) for individual in offspring]
+    # Ensure offspring list matches population size expected
+    offspring = offspring[:pop_size - len(elite_individuals)]
+
+    # Perform mutation on offspring only
+    mutated_offspring = [polynomial_mutation(ind, 0.1) for ind in offspring]
+
+    # New population formation with elitism
+    population = elite_individuals + mutated_offspring
 
 # Extract Pareto front from the final population
 pareto_front_fitness = evaluate_population(population, all_data[files[0]]['returns'], all_data[files[0]]['cov_matrix'])
