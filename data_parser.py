@@ -1,28 +1,25 @@
 import os
-
 import numpy as np
+
 def parse_portfolio_data(file_path):
     with open(file_path, 'r') as file:
         data = file.readlines()
-    
+
     num_assets = int(data[0].strip())  # number of assets
     returns = []
     std_devs = []
     correlations = {}
 
-    # Read mean returns and standard deviations
     for i in range(1, num_assets + 1):
         parts = data[i].strip().split()
         mean_return, std_dev = map(float, parts)
         returns.append(mean_return)
         std_devs.append(std_dev)
-    
-    # Read correlations and ensure symmetry
+
     for line in data[num_assets + 1:]:
         parts = line.strip().split()
         if len(parts) < 3:
-            print(line)
-            continue  # Skip lines that do not have enough data
+            continue
         i, j = map(int, parts[:2])
         corr = float(parts[2])
         if i not in correlations:
@@ -30,7 +27,7 @@ def parse_portfolio_data(file_path):
         if j not in correlations:
             correlations[j] = {}
         correlations[i][j] = corr
-        correlations[j][i] = corr  # Ensure the matrix is symmetric
+        correlations[j][i] = corr
 
     return num_assets, returns, std_devs, correlations
 
@@ -44,40 +41,21 @@ def construct_covariance_matrix(num_assets, std_devs, correlations):
                 cov_matrix[i-1][j-1] = correlations[i][j] * std_devs[i-1] * std_devs[j-1]
     return cov_matrix
 
+def read_frontier_data(file_path):
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
 
-def load_portfolio_data(data_files_path, portfolio_prefix):
-    all_data = {}
-    files = []
+    frontier_points = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) != 2:
+            print(f"Skipping line due to incorrect format: '{line}'")
+            continue
 
-    for file_name in os.listdir(data_files_path):
-        if file_name.startswith(portfolio_prefix) and file_name[len(portfolio_prefix)].isdigit():
-            path = os.path.join(data_files_path, file_name)
-            files.append(file_name)
-            num_assets, returns, std_devs, correlations = parse_portfolio_data(path)
-            cov_matrix = construct_covariance_matrix(num_assets, std_devs, correlations)
-            all_data[file_name] = {"returns": returns, "cov_matrix": cov_matrix}
-    
-    return all_data, files
+        mean_return, variance = map(float, parts)
+        frontier_points.append((mean_return, variance))
 
-#todo: not sure where the frontier to use
-def read_frontier(directory_path, prefix):
-    frontier_points_list = []
-
-    for filename in os.listdir(directory_path):
-        if filename.startswith(prefix):
-            file_path = os.path.join(directory_path, filename)
-            with open(file_path, 'r') as file:
-                lines = file.readlines()
-
-            frontier_points = []
-            for line in lines:
-                mean_return, variance = map(float, line.split())
-                frontier_points.append((mean_return, variance))
-
-            frontier_points_list.append(frontier_points)
-
-    return frontier_points_list
-# frontier_points_list = read_frontier(DATA_FILES_PATH, FRONTIER_PREFIX)
-
-#print(all_data)
-#print("_____")
+    return frontier_points

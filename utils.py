@@ -23,20 +23,22 @@ def initialize_population(pop_size, num_assets):
     population /= population.sum(axis=1)[:, np.newaxis]  # Normalize to sum to 1
     return population
 
+
 def evaluate_population(population, all_data):
     fitness = []
     for weights in population:
         portfolio_returns = []
         portfolio_variances = []
-        for file_name, data in all_data.items():
-            returns = data['returns']
-            cov_matrix = data['cov_matrix']
-            if len(weights) != len(returns):
-                continue  # Skip if dimensions don't match
-            portfolio_return = np.dot(weights, returns)
-            portfolio_variance = np.dot(np.dot(weights, cov_matrix), weights)
-            portfolio_returns.append(portfolio_return)
-            portfolio_variances.append(portfolio_variance)
+        # Assume 'all_data' is a dictionary with one key 'data' that contains 'returns' and 'cov_matrix'
+        returns = all_data['returns']
+        cov_matrix = all_data['cov_matrix']
+        if len(weights) != len(returns):
+            continue  # Skip if dimensions don't match
+        portfolio_return = np.dot(weights, returns)
+        portfolio_variance = np.dot(np.dot(weights, cov_matrix), weights)
+        portfolio_returns.append(portfolio_return)
+        portfolio_variances.append(portfolio_variance)
+
         if portfolio_returns and portfolio_variances:  # Check if both returns and variances are calculated
             fitness.append((portfolio_returns, portfolio_variances))
     return fitness
