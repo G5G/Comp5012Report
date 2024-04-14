@@ -58,3 +58,8 @@ def plot_results(portfolio_file, frontier_file):
 
 # Example usage:
 plot_results('data/port1.txt', 'data/portef1.txt')
+#plot_results('data/port2.txt', 'data/portef2.txt')
+#plot_results('data/port3.txt', 'data/portef3.txt')
+#plot_results('data/port4.txt', 'data/portef4.txt')
+#plot_results('data/port5.txt', 'data/portef5.txt')
+
