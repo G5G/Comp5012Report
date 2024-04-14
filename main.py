@@ -4,78 +4,12 @@ import random
 import numpy as np
 from matplotlib import pyplot as plt
 
-from advanced_genetic_operations import sbx_crossover, polynomial_mutation
+from advanced_genetic_operations import sbx_crossover, polynomial_mutation, pareto_selection, integrate_elitism
 from config import DATA_FILES_PATH, PORTFOLIO_PREFIX, ALGORITHM_PARAMS
-from data_parser import parse_portfolio_data, construct_covariance_matrix
+from data_parser import parse_portfolio_data, construct_covariance_matrix, load_portfolio_data
+from utils import initialize_population, evaluate_population
 
-
-def initialize_population(pop_size, num_assets):
-    """
-    Initialize a population of portfolios.
-    :param pop_size: Number of portfolios in the population
-    :param num_assets: Number of assets in each portfolio
-    :return: Initial population (numpy array)
-    """
-    population = np.random.rand(pop_size, num_assets)
-    population /= population.sum(axis=1)[:, np.newaxis]  # Normalize to sum to 1
-    return population
-
-
-# Function to evaluate the fitness of each portfolio
-def evaluate_population(population, all_data):
-    fitness = []
-    for weights in population:
-        portfolio_returns = []
-        portfolio_variances = []
-        for file_name, data in all_data.items():
-            returns = data['returns']
-            cov_matrix = data['cov_matrix']
-            if len(weights) != len(returns):
-                continue  # Skip if dimensions don't match
-            portfolio_return = np.dot(weights, returns)
-            portfolio_variance = np.dot(np.dot(weights, cov_matrix), weights)
-            portfolio_returns.append(portfolio_return)
-            portfolio_variances.append(portfolio_variance)
-        if portfolio_returns and portfolio_variances:  # Check if both returns and variances are calculated
-            fitness.append((portfolio_returns, portfolio_variances))
-    return fitness
-
-
-
-
-# Function to perform selection based on Pareto dominance
-def pareto_selection(population, fitness):
-    pareto_front = []
-    for i, (r1, v1) in enumerate(fitness):
-        dominated = False
-        for j, (r2, v2) in enumerate(fitness):
-            if i != j and r2 >= r1 and v2 <= v1:
-                dominated = True
-                break
-        if not dominated:
-            pareto_front.append(population[i])
-    return pareto_front
-
-def integrate_elitism(population, fitness, elite_size=10):
-    # Sort the population based on fitness; assuming smaller fitness values are better
-    sorted_population = sorted(zip(population, fitness), key=lambda x: x[1])
-    elite_individuals = [ind for ind, fit in sorted_population[:elite_size]]
-    return elite_individuals
-
-
-all_data = {}
-num_assets = 0
-
-#track all the files name
-files = []
-
-for file_name in os.listdir(DATA_FILES_PATH):
-    if file_name.startswith(PORTFOLIO_PREFIX) and file_name[len(PORTFOLIO_PREFIX)].isdigit():
-        path = f"{DATA_FILES_PATH}/{file_name}"
-        files.append(file_name)
-        num_assets, returns, std_devs, correlations = parse_portfolio_data(path)
-        cov_matrix = construct_covariance_matrix(num_assets, std_devs, correlations)
-        all_data[file_name] = {"returns": returns, "cov_matrix": cov_matrix}
+all_data, files = load_portfolio_data(DATA_FILES_PATH, PORTFOLIO_PREFIX)
 
 pop_size = ALGORITHM_PARAMS['POP_SIZE']
 num_assets = len(all_data[files[0]]['returns'])

@@ -49,3 +49,21 @@ def polynomial_mutation(individual, mutation_rate, eta_m=20, low=0, high=1):
             mutant[i] = np.clip(mutant[i], low, high)
     
     return mutant
+
+def pareto_selection(population, fitness):
+    pareto_front = []
+    for i, (r1, v1) in enumerate(fitness):
+        dominated = False
+        for j, (r2, v2) in enumerate(fitness):
+            if i != j and r2 >= r1 and v2 <= v1:
+                dominated = True
+                break
+        if not dominated:
+            pareto_front.append(population[i])
+    return pareto_front
+
+def integrate_elitism(population, fitness, elite_size=10):
+    # Sort the population based on fitness; smaller fitness values are better
+    sorted_population = sorted(zip(population, fitness), key=lambda x: x[1])
+    elite_individuals = [ind for ind, fit in sorted_population[:elite_size]]
+    return elite_individuals

@@ -17,3 +17,26 @@ def calculate_portfolio_risk(weights, cov_matrix):
     :return: risk (standard deviation) of the portfolio
     """
     return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+
+def initialize_population(pop_size, num_assets):
+    population = np.random.rand(pop_size, num_assets)
+    population /= population.sum(axis=1)[:, np.newaxis]  # Normalize to sum to 1
+    return population
+
+def evaluate_population(population, all_data):
+    fitness = []
+    for weights in population:
+        portfolio_returns = []
+        portfolio_variances = []
+        for file_name, data in all_data.items():
+            returns = data['returns']
+            cov_matrix = data['cov_matrix']
+            if len(weights) != len(returns):
+                continue  # Skip if dimensions don't match
+            portfolio_return = np.dot(weights, returns)
+            portfolio_variance = np.dot(np.dot(weights, cov_matrix), weights)
+            portfolio_returns.append(portfolio_return)
+            portfolio_variances.append(portfolio_variance)
+        if portfolio_returns and portfolio_variances:  # Check if both returns and variances are calculated
+            fitness.append((portfolio_returns, portfolio_variances))
+    return fitness

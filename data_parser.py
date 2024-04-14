@@ -44,6 +44,21 @@ def construct_covariance_matrix(num_assets, std_devs, correlations):
                 cov_matrix[i-1][j-1] = correlations[i][j] * std_devs[i-1] * std_devs[j-1]
     return cov_matrix
 
+
+def load_portfolio_data(data_files_path, portfolio_prefix):
+    all_data = {}
+    files = []
+
+    for file_name in os.listdir(data_files_path):
+        if file_name.startswith(portfolio_prefix) and file_name[len(portfolio_prefix)].isdigit():
+            path = os.path.join(data_files_path, file_name)
+            files.append(file_name)
+            num_assets, returns, std_devs, correlations = parse_portfolio_data(path)
+            cov_matrix = construct_covariance_matrix(num_assets, std_devs, correlations)
+            all_data[file_name] = {"returns": returns, "cov_matrix": cov_matrix}
+    
+    return all_data, files
+
 #todo: not sure where the frontier to use
 def read_frontier(directory_path, prefix):
     frontier_points_list = []
