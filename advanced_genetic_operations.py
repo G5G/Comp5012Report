@@ -44,10 +44,6 @@ def pareto_selection(population, fitness):
             pareto_front.append(population[i])
     return pareto_front
 
-def integrate_elitism(population, fitness, elite_size=10):
-    sorted_population, sorted_fitness = pareto_rank_and_crowding(population, fitness)
-    elite_individuals = sorted_population[:elite_size]
-    return elite_individuals
 
 def calculate_crowding_distance(front):
     if not front:
@@ -159,6 +155,12 @@ def update_pareto_front(population, pareto_front):
     return new_front
 
 def dominates(individual1, individual2):
+    """
+    better than another individual in at least one objective and not worse in any objective
+    :param individual1: 
+    :param individual2: 
+    :return: 
+    """
     better_in_one = False
     for i in range(len(individual1.fitness)):
         if individual1.fitness[i] > individual2.fitness[i]:  # Assuming higher fitness is better for all objectives
