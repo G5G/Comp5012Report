@@ -44,21 +44,126 @@ def pareto_selection(population, fitness):
             pareto_front.append(population[i])
     return pareto_front
 
-def pareto_rank_and_crowding(population, fitness):
-    ranks = {}
-    crowding_distances = {i: 0 for i in range(len(fitness))}  # Initialize crowding distances
-
-    # Example logic to assign ranks and compute crowding distances
-    # This is a placeholder for actual Pareto ranking and crowding distance calculation
-    for i, (r1, v1) in enumerate(fitness):
-        ranks[i] = sum(r2 >= r1 and v2 <= v1 for j, (r2, v2) in enumerate(fitness) if i != j)
-    
-    # Sort based on rank and then by crowding distance (larger is better)
-    sorted_indices = sorted(range(len(fitness)), key=lambda i: (ranks[i], -crowding_distances[i]))
-
-    return [population[i] for i in sorted_indices], [fitness[i] for i in sorted_indices]
-
 def integrate_elitism(population, fitness, elite_size=10):
     sorted_population, sorted_fitness = pareto_rank_and_crowding(population, fitness)
     elite_individuals = sorted_population[:elite_size]
     return elite_individuals
+
+def calculate_crowding_distance(front):
+    if not front:
+        return
+    
+    number_of_objectives = len(front[0].fitness)  # Change from objectives to fitness
+    for individual in front:
+        individual.crowding_distance = 0
+    
+    for m in range(number_of_objectives):
+        front.sort(key=lambda x: x.fitness[m])  # Change from objectives to fitness
+        front[0].crowding_distance = front[-1].crowding_distance = float('inf')
+        
+        if len(front) > 2:
+            for i in range(1, len(front) - 1):
+                front[i].crowding_distance += (front[i + 1].fitness[m] - front[i - 1].fitness[m]) / (front[-1].fitness[m] - front[0].fitness[m])
+
+def sort_population_by_non_domination(population):
+    fronts = [[]]
+    for individual in population:
+        individual.dominated_solutions = set()
+        individual.domination_count = 0
+
+        for other in population:
+            if individual.dominates(other):
+                individual.dominated_solutions.add(other)
+            elif other.dominates(individual):
+                individual.domination_count += 1
+        
+        if individual.domination_count == 0:
+            individual.rank = 0
+            fronts[0].append(individual)
+    
+    i = 0
+    while fronts[i]:
+        next_front = []
+        for individual in fronts[i]:
+            for dominated in individual.dominated_solutions:
+                dominated.domination_count -= 1
+                if dominated.domination_count == 0:
+                    dominated.rank = i + 1
+                    next_front.append(dominated)
+        i += 1
+        fronts.append(next_front)
+    
+    return fronts[:-1]
+
+import random
+
+def tournament_selection(ind1, ind2):
+    if ind1.rank < ind2.rank:
+        return ind1
+    elif ind1.rank > ind2.rank:
+        return ind2
+    else:
+        if ind1.crowding_distance > ind2.crowding_distance:
+            return ind1
+        return ind2
+
+
+def select_parents(population, num_parents):
+    fronts = sort_population_by_non_domination(population)
+    for front in fronts:
+        calculate_crowding_distance(front)
+    
+    parents = []
+    while len(parents) < num_parents:
+        i1, i2 = random.sample(population, 2)
+        winner = tournament_selection(i1, i2)
+        parents.append(winner)
+    
+    return parents
+
+def uniform_crossover(parent1_weights, parent2_weights):
+    offspring = np.where(np.random.rand(len(parent1_weights)) < 0.5, parent1_weights, parent2_weights)
+    offspring /= np.sum(offspring)  # Normalize to ensure weights sum to 1
+    return offspring, offspring.copy()  # Return two offsprings for symmetrical crossover
+
+def mutate(weights, mutation_rate, mutation_shift):
+    if np.random.rand() < mutation_rate:
+        mutation_vector = np.random.normal(loc=0, scale=mutation_shift, size=len(weights))
+        weights += mutation_vector
+        # Normalize to ensure weights sum to 1
+        weights = np.maximum(weights, 0)  # Ensure no negative weights
+        weights /= np.sum(weights)
+    return weights
+
+
+def update_pareto_front(population, pareto_front):
+    combined = pareto_front + population
+    new_front = []
+
+    for candidate in combined:
+        dominated = False
+        non_dominating = []
+
+        for member in new_front:
+            if dominates(candidate, member):
+                # If candidate dominates a member, remove the member from the new front
+                non_dominating.append(member)
+            elif dominates(member, candidate):
+                dominated = True
+                break
+
+        if not dominated:
+            new_front.append(candidate)
+            new_front = [x for x in new_front if x not in non_dominating]
+
+    return new_front
+
+def dominates(individual1, individual2):
+    better_in_one = False
+    for i in range(len(individual1.fitness)):
+        if individual1.fitness[i] > individual2.fitness[i]:  # Assuming higher fitness is better for all objectives
+            better_in_one = True
+        elif individual1.fitness[i] < individual2.fitness[i]:
+            return False
+    return better_in_one
+
