@@ -5,7 +5,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from advanced_genetic_operations import select_parents, uniform_crossover, mutate, update_pareto_front, \
-    polynomial_mutation, sbx_crossover
+    polynomial_mutation, sbx_crossover, elitism_selection
 from config import ALGORITHM_PARAMS, NO_OF_FILES, DATA_FILES_PATH, PORTFOLIO_PREFIX, FRONTIER_PREFIX
 from data_parser import parse_portfolio_data, construct_covariance_matrix, read_frontier_data
 from utils import initialize_population, evaluate_fitness, Individual
@@ -17,7 +17,14 @@ class PortfolioOptimization:
         self.frontier_file = frontier_file
         self.mutation = [mutate, polynomial_mutation]
         self.crossover = [uniform_crossover, sbx_crossover]
-
+        self.mutation_methods = {
+            'uniform': mutate,
+            'polynomial': polynomial_mutation
+        }
+        self.crossover_methods = {
+            'uniform': uniform_crossover,
+            'sbx': sbx_crossover
+        }
     def optimize(self):
         num_assets, returns, std_devs, correlations = parse_portfolio_data(self.portfolio_file)
         cov_matrix = construct_covariance_matrix(num_assets, std_devs, correlations)
@@ -25,15 +32,17 @@ class PortfolioOptimization:
         pop_size = ALGORITHM_PARAMS['POP_SIZE']
         num_generations = ALGORITHM_PARAMS['NUM_GENERATIONS']
         crossover_rate = ALGORITHM_PARAMS['CROSSOVER_RATE']
-        mutation_shift = ALGORITHM_PARAMS['mutation_shift']
-        mutation_rate = ALGORITHM_PARAMS['mutation_rate']
-
+        n_elites = ALGORITHM_PARAMS['ELITISM_COUNT']
         population = initialize_population(pop_size, num_assets)
         pareto_front = []
 
         for generation in range(num_generations):
+            
             print(f'Generation {generation + 1}')
-            new_population = []
+
+            elites = elitism_selection(population, n_elites) 
+            new_population = elites[:]  # Start with the elites
+
 
             for individual in population:
                 evaluate_fitness(individual, returns, cov_matrix)
@@ -42,9 +51,8 @@ class PortfolioOptimization:
 
             parents = select_parents(population, pop_size)
 
-            # randomly select crossover and mutation
-            mutate_fn = random.choice(self.mutation)
-            crossover_fn = random.choice(self.crossover)
+            mutate_fn = self.mutation_methods[ALGORITHM_PARAMS['mutation_type']]
+            crossover_fn = self.crossover_methods[ALGORITHM_PARAMS['crossover_type']]
             # simple uniform cross over
             for i in range(0, len(parents), 2):
                 parent1, parent2 = parents[i], parents[i + 1]
@@ -53,8 +61,8 @@ class PortfolioOptimization:
                 else:
                     offspring1_weights, offspring2_weights = parent1.weights.copy(), parent2.weights.copy()
 
-                offspring1 = Individual(mutate_fn(offspring1_weights, mutation_rate, mutation_shift))
-                offspring2 = Individual(mutate_fn(offspring2_weights, mutation_rate, mutation_shift))
+                offspring1 = Individual(mutate_fn(offspring1_weights))
+                offspring2 = Individual(mutate_fn(offspring2_weights))
                 new_population.extend([offspring1, offspring2])
 
             population = new_population

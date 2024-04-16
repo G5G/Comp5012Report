@@ -1,9 +1,10 @@
 import numpy as np
-
+from config import ALGORITHM_PARAMS
 def normalize_weights(weights):
     return weights / np.sum(weights)
 
-def sbx_crossover(parent1, parent2, eta_c=15, low=0, high=1):
+def sbx_crossover(parent1, parent2, low=0, high=1):
+    eta_c = ALGORITHM_PARAMS['SBX_ETA']
     rand = np.random.rand(parent1.shape[0])
     gamma = np.empty(parent1.shape[0])
     mask = rand <= 0.5
@@ -19,7 +20,9 @@ def sbx_crossover(parent1, parent2, eta_c=15, low=0, high=1):
     
     return offspring1, offspring2
 
-def polynomial_mutation(individual, mutation_rate, eta_m=20, low=0, high=1):
+def polynomial_mutation(individual, low=0, high=1):
+    eta_m = ALGORITHM_PARAMS['POLY_ETA']
+    mutation_rate = ALGORITHM_PARAMS['mutation_rate']
     mutant = np.copy(individual)
     for i in range(len(mutant)):
         if np.random.rand() < mutation_rate:
@@ -122,7 +125,9 @@ def uniform_crossover(parent1_weights, parent2_weights):
     offspring /= np.sum(offspring)  # Normalize to ensure weights sum to 1
     return offspring, offspring.copy()  # Return two offsprings for symmetrical crossover
 
-def mutate(weights, mutation_rate, mutation_shift):
+def mutate(weights):
+    mutation_shift = ALGORITHM_PARAMS['mutation_shift']
+    mutation_rate = ALGORITHM_PARAMS['mutation_rate']
     if np.random.rand() < mutation_rate:
         mutation_vector = np.random.normal(loc=0, scale=mutation_shift, size=len(weights))
         weights += mutation_vector
@@ -155,12 +160,6 @@ def update_pareto_front(population, pareto_front):
     return new_front
 
 def dominates(individual1, individual2):
-    """
-    better than another individual in at least one objective and not worse in any objective
-    :param individual1: 
-    :param individual2: 
-    :return: 
-    """
     better_in_one = False
     for i in range(len(individual1.fitness)):
         if individual1.fitness[i] > individual2.fitness[i]:  # Assuming higher fitness is better for all objectives
@@ -169,3 +168,7 @@ def dominates(individual1, individual2):
             return False
     return better_in_one
 
+def elitism_selection(population, n_elites):
+    filtered_population = [ind for ind in population if ind.fitness is not None]
+    sorted_population = sorted(filtered_population, key=lambda ind: ind.fitness[0], reverse=True)
+    return sorted_population[:n_elites]
