@@ -1,12 +1,13 @@
 import os
 import random
 import numpy as np
+
 np.random.seed(574325)
 from matplotlib import pyplot as plt
 
-from advanced_genetic_operations import select_parents, uniform_crossover, mutate, update_pareto_front, \
+from advanced_genetic_operations import select_parents, uniform_crossover, gaussian_mutation, update_pareto_front, \
     polynomial_mutation, sbx_crossover, elitism_selection
-from config import ALGORITHM_PARAMS, NO_OF_FILES, DATA_FILES_PATH, PORTFOLIO_PREFIX, FRONTIER_PREFIX
+from config import ALGORITHM_PARAMS, NO_OF_FILES, DATA_FILES_PATH, PORTFOLIO_PREFIX, FRONTIER_PREFIX, NO_OF_TRIALS
 from data_parser import parse_portfolio_data, construct_covariance_matrix, read_frontier_data
 from utils import initialize_population, evaluate_fitness, Individual
 
@@ -17,11 +18,19 @@ PARAMETER_RANGES = {
     'mutation_rate': [0.01, 0.02, 0.05, 0.1, 0.2, 0.4, 0.8, 1.0],  # Higher rates may escape local optima
     'mutation_shift': [0.01, 0.02, 0.05, 0.1, 0.2, 0.4, 0.8, 1.0],  # Variation in the magnitude of mutation
     'ELITISM_COUNT': [1, 2, 3, 5, 10, 15, 20],  # Larger numbers of elites can stabilize progress towards the optimum
-    'mutation_type': ['uniform', 'non-uniform', 'gaussian'],  # Gaussian mutation could provide fine-tuned search
-    'crossover_type': ['one-point', 'two-point', 'uniform', 'sbx']  # Simulated Binary Crossover (SBX) is a good option to try
+    'mutation_type': ['polynomial_mutation', 'gaussian_mutation'],  # Gaussian mutation could provide fine-tuned search
+    'crossover_type': ['uniform_crossover', 'sbx_crossover']
 }
 
+crossover_fn_map = {
+    "sbx_crossover": sbx_crossover,
+    "uniform_crossover": uniform_crossover
+}
 
+mutation_fn_map = {
+    "gaussian_mutation": gaussian_mutation,
+    "polynomial_mutation": polynomial_mutation
+}
 
 
 def random_search(num_trials):
@@ -32,7 +41,7 @@ def random_search(num_trials):
         remaining_trials = num_trials - i
         params = {key: random.choice(value) for key, value in PARAMETER_RANGES.items()}
         print(f"Testing parameters: {params}")
-        print(f"Trial {i+1}/{num_trials} - Remaining trials: {remaining_trials - 1}")
+        print(f"Trial {i + 1}/{num_trials} - Remaining trials: {remaining_trials - 1}")
 
         optimizer = PortfolioOptimization(
             f"{DATA_FILES_PATH}/{PORTFOLIO_PREFIX}1.txt",
@@ -41,7 +50,7 @@ def random_search(num_trials):
         )
         pareto_front = optimizer.optimize()
         score = evaluate_pareto_front(pareto_front)
-        
+
         if score > best_score:
             best_score = score
             best_params = params
@@ -52,6 +61,7 @@ def random_search(num_trials):
 
 def evaluate_pareto_front(pareto_front):
     return np.mean([ind.fitness[0] - ind.fitness[1] for ind in pareto_front])
+
 
 class PortfolioOptimization:
     def __init__(self, portfolio_file, frontier_file, params):
@@ -76,21 +86,25 @@ class PortfolioOptimization:
             for i in range(0, len(parents), 2):
                 parent1, parent2 = parents[i], parents[i + 1]
                 if np.random.rand() < self.params['CROSSOVER_RATE']:
-                    offspring1_weights, offspring2_weights = uniform_crossover(parent1.weights, parent2.weights)
+                    offspring1_weights, offspring2_weights = crossover_fn_map[self.params["crossover_type"]](
+                        parent1.weights,
+                        parent2.weights)
                 else:
                     offspring1_weights, offspring2_weights = parent1.weights.copy(), parent2.weights.copy()
-
-                offspring1 = Individual(mutate(offspring1_weights))
-                offspring2 = Individual(mutate(offspring2_weights))
+                mutation_fn = mutation_fn_map[self.params["mutation_type"]]
+                offspring1 = Individual(mutation_fn(offspring1_weights))
+                offspring2 = Individual(mutation_fn(offspring2_weights))
                 new_population.extend([offspring1, offspring2])
 
             population = new_population
 
         return pareto_front
 
-    def run_ga(self):
+    def run_ga(self, do_plot_correlation=True):
         pareto_front = self.optimize()
         self.plot_results(pareto_front)
+        if (do_plot_correlation):
+            self.plot_correlation(pareto_front)
 
     def plot_results(self, pareto_front):
         plt.figure(figsize=(10, 8))
@@ -99,8 +113,9 @@ class PortfolioOptimization:
         pareto_front_variances = [-ind.fitness[1] for ind in pareto_front]
         ax.scatter(pareto_front_returns, pareto_front_variances, c='b', marker='o', label='Pareto Front')
         frontier_points = read_frontier_data(self.frontier_file)
-        returns, variances = zip(*frontier_points)
-        ax.scatter(returns, variances, c='r', marker='x', label='Efficient Frontier')
+        frontier_returns, variances = zip(*frontier_points)  # Assuming each point is a tuple of (return, variance)
+        ax.scatter(frontier_returns, variances, c='r', marker='x', label='Efficient Frontier')
+
         ax.set_xlabel('Return')
         ax.set_ylabel('Variance')
         ax.set_title('Comparison of GA Pareto Front with Efficient Frontier')
@@ -108,10 +123,36 @@ class PortfolioOptimization:
         ax.grid(True)
         plt.show()
 
+    def plot_correlation(self, pareto_front):
+        frontier_points = read_frontier_data(self.frontier_file)
+        # Calculate correlations between each point in the Pareto front and each point on the efficient frontier
+        correlations = np.zeros((len(pareto_front), len(frontier_points)))
+        for i, pareto_point in enumerate(pareto_front):
+            for j, frontier_point in enumerate(frontier_points):
+                pareto_return, pareto_variance = pareto_point.fitness
+                frontier_return, frontier_variance = frontier_point
+                correlations[i, j] = np.corrcoef([pareto_return, frontier_return],
+                                                 [pareto_variance, frontier_variance])[0, 1]
+
+        # Visualize correlations as a heatmap
+        plt.figure(figsize=(10, 8))
+        ax = plt.subplot(111)
+        cax = ax.matshow(correlations, cmap='coolwarm')
+        plt.colorbar(cax)
+
+        ax.set_xlabel('Pareto Front Returns')
+        ax.set_ylabel('Efficient Frontier Returns')
+        # Remove x-axis and y-axis ticks
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title('Correlation between Pareto Front and Efficient Frontier')
+        plt.show()
+
+
 if __name__ == '__main__':
     user_input = input("Do you want to find the best parameters? (yes/no): ").strip().lower()
     if user_input == 'yes':
-        best_params = random_search(100)  # Perform 10 trials of random search
+        best_params = random_search(NO_OF_TRIALS)  # Perform trials
         print(f"Best parameters found: {best_params}")
         portfolio_file = f"{DATA_FILES_PATH}/{PORTFOLIO_PREFIX}1.txt"
         frontier_file = f"{DATA_FILES_PATH}/{FRONTIER_PREFIX}1.txt"

@@ -126,7 +126,7 @@ def uniform_crossover(parent1_weights, parent2_weights):
     offspring /= np.sum(offspring)  # Normalize to ensure weights sum to 1
     return offspring, offspring.copy()  # Return two offsprings for symmetrical crossover
 
-def mutate(weights):
+def gaussian_mutation(weights):
     mutation_shift = ALGORITHM_PARAMS['mutation_shift']
     mutation_rate = ALGORITHM_PARAMS['mutation_rate']
     if np.random.rand() < mutation_rate:
