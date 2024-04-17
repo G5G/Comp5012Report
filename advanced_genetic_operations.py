@@ -1,4 +1,7 @@
 import numpy as np
+import random
+np.random.seed(574325)
+random.seed(574325)
 from config import ALGORITHM_PARAMS
 def normalize_weights(weights):
     return weights / np.sum(weights)
@@ -93,8 +96,6 @@ def sort_population_by_non_domination(population):
         fronts.append(next_front)
     
     return fronts[:-1]
-
-import random
 
 def tournament_selection(ind1, ind2):
     if ind1.rank < ind2.rank:
