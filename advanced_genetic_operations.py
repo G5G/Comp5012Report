@@ -1,10 +1,18 @@
+
+
 import numpy as np
 import random
 np.random.seed(574325)
 random.seed(574325)
 from config import ALGORITHM_PARAMS
+
 def normalize_weights(weights):
-    return weights / np.sum(weights)
+    sum_weights = np.sum(weights)
+    if sum_weights == 0:
+        return weights
+    else:
+        return weights / sum_weights
+
 
 def sbx_crossover(parent1, parent2, low=0, high=1):
     eta_c = ALGORITHM_PARAMS['SBX_ETA']
@@ -24,18 +32,24 @@ def sbx_crossover(parent1, parent2, low=0, high=1):
     return offspring1, offspring2
 
 def polynomial_mutation(individual, low=0, high=1):
-    eta_m = ALGORITHM_PARAMS['POLY_ETA']
     mutation_rate = ALGORITHM_PARAMS['mutation_rate']
+    eta_m = ALGORITHM_PARAMS['POLY_ETA']
     mutant = np.copy(individual)
     for i in range(len(mutant)):
         if np.random.rand() < mutation_rate:
             u = np.random.rand()
-            delta = (2*u)**(1/(eta_m+1)) - 1 if u < 0.5 else 1 - (2*(1-u))**(1/(eta_m+1))
+            delta = None
+            if u < 0.5:
+                delta_q = (2*u)**(1/(eta_m+1)) - 1
+            else:
+                delta_q = 1 - (2*(1-u))**(1/(eta_m+1))
             
+            delta = (high - low) * delta_q
             mutant[i] += delta
             mutant[i] = np.clip(mutant[i], low, high)
     
     return normalize_weights(mutant)
+
 
 
 def pareto_selection(population, fitness):
@@ -126,16 +140,24 @@ def uniform_crossover(parent1_weights, parent2_weights):
     offspring /= np.sum(offspring)  # Normalize to ensure weights sum to 1
     return offspring, offspring.copy()  # Return two offsprings for symmetrical crossover
 
-def gaussian_mutation(weights):
-    mutation_shift = ALGORITHM_PARAMS['mutation_shift']
+def gaussian_mutation(weights, lower_bound=0, upper_bound=1):
     mutation_rate = ALGORITHM_PARAMS['mutation_rate']
-    if np.random.rand() < mutation_rate:
-        mutation_vector = np.random.normal(loc=0, scale=mutation_shift, size=len(weights))
-        weights += mutation_vector
-        # Normalize to ensure weights sum to 1
-        weights = np.maximum(weights, 0)  # Ensure no negative weights
-        weights /= np.sum(weights)
-    return weights
+    mutation_shift = ALGORITHM_PARAMS['mutation_shift']
+    new_weights = np.copy(weights)
+    for i in range(len(weights)):
+        if np.random.rand() < mutation_rate:
+            mutation = np.random.normal(loc=0, scale=mutation_shift)
+            new_weights[i] += mutation
+
+    # Clipping the weights to the bounds before normalization
+    new_weights = np.clip(new_weights, lower_bound, upper_bound)
+
+    # Normalize the weights to ensure they sum to 1
+    # This step maintains the proportion of each weight relative to the sum of all weights
+    new_weights /= np.sum(new_weights)
+
+    return new_weights
+
 
 
 def update_pareto_front(population, pareto_front):

@@ -32,7 +32,6 @@ mutation_fn_map = {
     "polynomial_mutation": polynomial_mutation
 }
 
-
 def random_search(num_trials):
     best_score = float('-inf')
     best_params = None
@@ -61,7 +60,6 @@ def random_search(num_trials):
 
 def evaluate_pareto_front(pareto_front):
     return np.mean([ind.fitness[0] - ind.fitness[1] for ind in pareto_front])
-
 
 class PortfolioOptimization:
     def __init__(self, portfolio_file, frontier_file, params):
@@ -164,3 +162,4 @@ if __name__ == '__main__':
             frontier_file = f"{DATA_FILES_PATH}/{FRONTIER_PREFIX}{idx + 1}.txt"
             optimizer = PortfolioOptimization(portfolio_file, frontier_file, ALGORITHM_PARAMS)
             optimizer.run_ga()
+
