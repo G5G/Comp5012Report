@@ -61,7 +61,10 @@ def random_search(num_trials):
 def evaluate_pareto_front(pareto_front):
     return np.mean([ind.fitness[0] - ind.fitness[1] for ind in pareto_front])
 
+pareto_checkpoints = []
 class PortfolioOptimization:
+    
+    
     def __init__(self, portfolio_file, frontier_file, params):
         self.portfolio_file = portfolio_file
         self.frontier_file = frontier_file
@@ -72,6 +75,9 @@ class PortfolioOptimization:
         cov_matrix = construct_covariance_matrix(num_assets, std_devs, correlations)
         population = initialize_population(self.params['POP_SIZE'], num_assets)
         pareto_front = []
+
+        checkpoint_interval = self.params['NUM_GENERATIONS'] // 5  # 20% intervals
+        
 
         for generation in range(self.params['NUM_GENERATIONS']):
             elites = elitism_selection(population, self.params['ELITISM_COUNT'])
@@ -93,6 +99,10 @@ class PortfolioOptimization:
                 offspring1 = Individual(mutation_fn(offspring1_weights))
                 offspring2 = Individual(mutation_fn(offspring2_weights))
                 new_population.extend([offspring1, offspring2])
+
+            if generation % checkpoint_interval == 0 or generation == self.params['NUM_GENERATIONS'] - 1:
+                pareto_checkpoints.append((generation, list(pareto_front)))
+
 
             population = new_population
 
@@ -119,6 +129,20 @@ class PortfolioOptimization:
         ax.set_title('Comparison of GA Pareto Front with Efficient Frontier')
         ax.legend()
         ax.grid(True)
+        plt.show()
+
+    def plot_progress(self, checkpoints):
+        for (generation, pareto_front) in checkpoints:
+            # Plotting code as per your 'plot_results' method, modified to include generation info.
+            pareto_front_returns = [ind.fitness[0] for ind in pareto_front]
+            pareto_front_variances = [-ind.fitness[1] for ind in pareto_front]
+            plt.scatter(pareto_front_returns, pareto_front_variances, label=f'Gen {generation}')
+        
+        plt.title('Pareto Front Progression')
+        plt.xlabel('Return')
+        plt.ylabel('Variance')
+        plt.legend()
+        plt.grid(True)
         plt.show()
 
     def plot_correlation(self, pareto_front):
@@ -162,4 +186,5 @@ if __name__ == '__main__':
             frontier_file = f"{DATA_FILES_PATH}/{FRONTIER_PREFIX}{idx + 1}.txt"
             optimizer = PortfolioOptimization(portfolio_file, frontier_file, ALGORITHM_PARAMS)
             optimizer.run_ga()
+            optimizer.plot_progress(pareto_checkpoints)  # Plot the progress
 
